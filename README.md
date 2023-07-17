@@ -17,13 +17,12 @@ SENTRY_KEY=''
 curl -v \
     -d '{"exception":{"values":[{"type":"Test issue","value":"store"}]}}' \
     -H 'Content-type: application/json' \
-    -H "X-Sentry-Auth: Sentry sentry_version=7, sentry_client=td-agent, sentry_key=$SENTRY_KEY" \
+    -H "X-Sentry-Auth: Sentry sentry_version=7, sentry_key=$SENTRY_KEY" \
     "https://$HOST/api/$PROJECT_ID/store/"
 ```
 
 Отправка события на [envelope endpoint](https://develop.sentry.dev/sdk/envelopes/):
 ```bash
-
 PROJECT_ID=0;
 HOST=''
 SENTRY_KEY=''
@@ -31,7 +30,7 @@ SENTRY_KEY=''
 # подготовка тела запроса
 echo '{"sdk":{"name":"sentry.javascript.vue","version":"7.54.0"},"trace":{"environment":"monitoring"}}' > body.json
 echo '{"type":"event"}' >> body.json
-echo '{"exception":{"values":[{"type":"Test issue","value":"frontend"}]}}' >> body.json
+echo '{"exception":{"values":[{"type":"Test issue","value":"envelope"}]}}' >> body.json
 
 curl -v \
   -H 'Content-type: text/plain' \
@@ -49,9 +48,10 @@ SENTRY_KEY=''
 # авторизация в теле прямо из клиента, нам она не нужна, но для правдоподобности оставим
 echo '{"sdk":{"name":"sentry.javascript.vue","version":"7.54.0"},"trace":{"environment":"monitoring"},"dsn":"https://'$SENTRY_KEY'@'$HOST'/'$PROJECT_ID'"}' > body.json
 echo '{"type":"event"}' >> body.json
-echo '{"exception":{"values":[{"type":"Test issue","value":"frontend tunnel"}]}}' >> body.json
+echo '{"exception":{"values":[{"type":"Test issue","value":"envelope tunnel"}]}}' >> body.json
 
 # мы отправляем туда же, куда обычно шлем запросы, потому что под капотом свой обработчик
+# он преобразует запрос и перенаправит его на сервер Sentry
 curl -v \
   -H 'Content-type: text/plain' \
   --data-binary @body.json \
@@ -63,13 +63,13 @@ curl -v \
 
 ## Мониторинг доставляемости событий по проектам
 
-Проверка сколько секунд назад было последнее событие в `issue` через [API](https://docs.sentry.io/api/events/retrieve-an-issue/) (нужно выполнить для каждого `issue` сгенерированных на прошлых шагах):
+Проверка сколько секунд назад было последнее событие в `issue` через [API](https://docs.sentry.io/api/events/retrieve-an-issue/) (нужно выполнить для каждого сгенерированного `issue` на прошлых шагах):
 ```bash
 ISSUE_ID=0
 SENTRY_TOKEN=""
 HOST=''
 
-lastSeen=$(curl -s -H "Authorization: Bearer $sentryToken" "https://$HOST/api/0/issues/$ISSUE_ID/" | grep -o -m 1 '"lastSeen":"[^"]*' | grep -o -m 1 '[^"]*$')
+lastSeen=$(curl -s -H "Authorization: Bearer $SENTRY_TOKEN" "https://$HOST/api/0/issues/$ISSUE_ID/" | grep -o -m 1 '"lastSeen":"[^"]*' | grep -o -m 1 '[^"]*$')
 timeDiff=$(( $(date -d "$lastSeen" +"%s") - $(date +%s) ))
 timeDiff=${timeDiff#-}
 
